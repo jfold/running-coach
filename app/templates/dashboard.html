@@ -5,48 +5,710 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Running Coach</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 </head>
-<body>
+<body class="dashboard-page">
     <div class="dashboard">
-        {% if message %}
-        <div class="success-message">
-            {{ message }}
-        </div>
-        {% endif %}
-
-        <div class="athlete-info">
-            {% if athlete.profile %}
-            <img src="{{ athlete.profile }}" alt="{{ athlete.firstname }}" class="athlete-avatar">
-            {% else %}
-            <div class="athlete-avatar" style="background: #667eea; display: flex; align-items: center; justify-content: center; color: white; font-size: 2rem;">
-                {{ athlete.firstname[0] if athlete.firstname else '?' }}
-            </div>
-            {% endif %}
-
-            <div class="athlete-details">
-                <h2>Welcome, {{ athlete.firstname }} {{ athlete.lastname }}!</h2>
-                <p>{{ athlete.city }}, {{ athlete.state }} {{ athlete.country }}</p>
-                {% if athlete.username %}
-                <p>@{{ athlete.username }}</p>
+        <div class="dashboard-header">
+            <div class="athlete-info-card">
+                {% if athlete.profile %}
+                <img src="{{ athlete.profile }}" alt="{{ athlete.firstname }}" class="athlete-avatar">
+                {% else %}
+                <div class="athlete-avatar" style="background: #667eea; display: flex; align-items: center; justify-content: center; color: white; font-size: 2rem;">
+                    {{ athlete.firstname[0] if athlete.firstname else '?' }}
+                </div>
                 {% endif %}
+
+                <div class="athlete-details">
+                    <h1>{{ athlete.firstname }} {{ athlete.lastname }}</h1>
+                    <div class="athlete-info-line">
+                        <p class="location" id="athlete-location">
+                            📍 <span id="location-text">Loading location...</span>
+                        </p>
+                        <p class="age" id="athlete-age">
+                            <!-- Age will be populated by JavaScript from HR settings -->
+                        </p>
+                    </div>
+                    {% if athlete.username %}
+                    <p class="username">@{{ athlete.username }}</p>
+                    {% endif %}
+
+                    <!-- Heart Rate Zones Inline Display -->
+                    <div class="hr-zones-inline" id="hr-zones-inline">
+                        <!-- Zones will be populated by JavaScript -->
+                    </div>
+
+                    <!-- Personal Records Inline -->
+                    <div class="pr-section-inline">
+                        <div class="pr-header-inline">
+                            <span class="pr-title-inline">🏆 Personal Records</span>
+                        </div>
+                        <div class="pr-grid-inline" id="pr-grid-inline">
+                            <div class="pr-loading-inline">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings and Logout Buttons -->
+                <div class="action-buttons">
+                    <button id="toggle-settings-panel" class="settings-btn">⚙️</button>
+                </div>
             </div>
         </div>
 
-        <div class="container">
-            <h2>Your Running Stats</h2>
-            <p style="color: #718096; margin: 1rem 0;">
-                We've successfully connected your Strava account. Your running data will appear here!
-            </p>
-
-            <div style="margin-top: 2rem;">
-                <p style="color: #4a5568;">
-                    <strong>Next steps:</strong> We'll be adding features to display your activities,
-                    track your progress, and help you achieve your running goals.
-                </p>
+        <!-- Settings Slide-in Panel -->
+        <div class="settings-overlay" id="settings-overlay" style="display: none;"></div>
+        <div class="settings-panel" id="settings-panel">
+            <div class="settings-panel-header">
+                <h3>⚙️ Settings</h3>
+                <button id="close-settings-panel" class="close-panel-btn">✕</button>
             </div>
 
-            <a href="/auth/logout" class="logout-btn">Logout</a>
+            <div class="settings-panel-content">
+                <!-- Settings Tabs -->
+                <div class="settings-tabs">
+                    <button class="settings-tab-btn active" data-settings-tab="hr-zones">Heart Rate Zones</button>
+                    <button class="settings-tab-btn" data-settings-tab="account">Account</button>
+                </div>
+
+                <!-- HR Zones Settings Tab -->
+                <div id="hr-zones-tab" class="settings-tab-content active">
+                    <div class="hr-settings-tabs">
+                        <button class="hr-tab-btn active" data-hr-tab="params">Calculate from Age</button>
+                        <button class="hr-tab-btn" data-hr-tab="manual">Manual Zones</button>
+                    </div>
+
+                    <!-- Calculate from Age Tab -->
+                    <div id="params-tab" class="hr-tab-content active">
+                        <div class="form-group">
+                            <label for="actual-age">Actual Age:</label>
+                            <input type="number" id="actual-age" class="hr-input" min="1" max="120">
+                        </div>
+                        <div class="form-group">
+                            <label for="fitness-age">Fitness Age (optional):</label>
+                            <input type="number" id="fitness-age" class="hr-input" min="1" max="120" placeholder="Leave blank to use actual age">
+                        </div>
+                        <div class="form-group">
+                            <label for="max-hr">Max Heart Rate:</label>
+                            <input type="number" id="max-hr" class="hr-input" min="100" max="220" readonly>
+                            <small>Calculated as 220 - (fitness age or actual age)</small>
+                        </div>
+                        <button id="save-params-btn" class="save-btn">Calculate & Save Zones</button>
+                    </div>
+
+                    <!-- Manual Zones Tab -->
+                    <div id="manual-tab" class="hr-tab-content">
+                        <div id="manual-zones-inputs">
+                            <!-- Zone inputs will be populated by JavaScript -->
+                        </div>
+                        <button id="save-manual-zones-btn" class="save-btn">Save Manual Zones</button>
+                    </div>
+                </div>
+
+                <!-- Account Settings Tab -->
+                <div id="account-tab" class="settings-tab-content">
+                    <div class="account-info">
+                        <h4>Account</h4>
+                        <p>Connected to Strava</p>
+                        <button id="logout-btn" class="logout-btn-panel">Logout</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="activities">Recent Activities</button>
+            <button class="tab-btn" data-tab="analytics">Analytics</button>
+        </div>
+
+        <div class="dashboard-content">
+            <!-- Activities Tab -->
+            <div id="activities-tab" class="tab-content active">
+                <div class="activities-section">
+                    <h2>Recent Activities</h2>
+
+                {% if activities %}
+                <div class="activities-table-container">
+                    <table class="activities-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Activity</th>
+                                <th>Type</th>
+                                <th>Distance</th>
+                                <th>Duration</th>
+                                <th>Pace</th>
+                                <th>Elevation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for activity in activities %}
+                            <tr>
+                                <td class="date-col">
+                                    {{ activity.start_date_local.split('T')[0] }}
+                                </td>
+                                <td class="name-col">
+                                    <strong>{{ activity.name }}</strong>
+                                </td>
+                                <td class="type-col">
+                                    <span class="activity-type {{ activity.type.lower() }}">
+                                        {{ activity.type }}
+                                    </span>
+                                </td>
+                                <td class="distance-col">
+                                    {{ "%.2f"|format(activity.distance / 1000) }} km
+                                </td>
+                                <td class="duration-col">
+                                    {{ (activity.moving_time // 3600)|int }}:{{ "%02d"|format((activity.moving_time % 3600) // 60) }}:{{ "%02d"|format(activity.moving_time % 60) }}
+                                </td>
+                                <td class="pace-col">
+                                    {% if activity.distance > 0 %}
+                                        {{ "%d:%02d"|format((activity.moving_time / (activity.distance / 1000)) // 60, (activity.moving_time / (activity.distance / 1000)) % 60) }} /km
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td class="elevation-col">
+                                    {{ "%.0f"|format(activity.total_elevation_gain) }} m
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="no-activities">
+                    <p>No activities found. Start tracking your runs on Strava!</p>
+                </div>
+                {% endif %}
+                </div>
+            </div>
+
+            <!-- Analytics Tab -->
+            <div id="analytics-tab" class="tab-content">
+                <div class="analytics-section">
+                    <h2>Running Analytics</h2>
+
+                    <div class="date-filter">
+                        <div class="date-inputs">
+                            <div class="date-input-group">
+                                <label for="start-date">Start Date:</label>
+                                <input type="date" id="start-date" class="date-input">
+                            </div>
+                            <div class="date-input-group">
+                                <label for="end-date">End Date:</label>
+                                <input type="date" id="end-date" class="date-input">
+                            </div>
+                            <button id="update-chart-btn" class="update-btn">Update Chart</button>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <canvas id="distanceChart"></canvas>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
+
+    <script>
+        // Tab switching
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabName = btn.dataset.tab;
+
+                // Remove active class from all tabs
+                tabBtns.forEach(b => b.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+
+                // Add active class to clicked tab
+                btn.classList.add('active');
+                document.getElementById(`${tabName}-tab`).classList.add('active');
+            });
+        });
+
+        // Chart functionality
+        let distanceChart = null;
+
+        // Set default dates (last year)
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setFullYear(startDate.getFullYear() - 1);
+
+        document.getElementById('start-date').valueAsDate = startDate;
+        document.getElementById('end-date').valueAsDate = endDate;
+
+        async function loadChartData(startDate, endDate) {
+            try {
+                const response = await fetch(`/api/activities?start_date=${startDate}&end_date=${endDate}`);
+                const data = await response.json();
+
+                // Filter only running activities
+                const runActivities = data.activities.filter(a => a.type === 'Run');
+
+                // Sort by date
+                runActivities.sort((a, b) => new Date(a.start_date_local) - new Date(b.start_date_local));
+
+                // Prepare chart data with actual date objects for proper time spacing
+                const chartData = runActivities.map(a => ({
+                    x: new Date(a.start_date_local),
+                    y: (a.distance / 1000).toFixed(2)
+                }));
+
+                updateChart(chartData);
+            } catch (error) {
+                console.error('Error loading chart data:', error);
+            }
+        }
+
+        function updateChart(data) {
+            const ctx = document.getElementById('distanceChart').getContext('2d');
+
+            if (distanceChart) {
+                distanceChart.destroy();
+            }
+
+            distanceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Distance (km)',
+                        data: data,
+                        borderColor: '#fc4c02',
+                        backgroundColor: 'rgba(252, 76, 2, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.1,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        pointBackgroundColor: '#fc4c02',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                        },
+                        tooltip: {
+                            mode: 'nearest',
+                            intersect: false,
+                            callbacks: {
+                                title: function(context) {
+                                    const date = new Date(context[0].parsed.x);
+                                    return date.toLocaleDateString('en-US', {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric'
+                                    });
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'day',
+                                displayFormats: {
+                                    day: 'MMM d',
+                                    week: 'MMM d',
+                                    month: 'MMM yyyy'
+                                },
+                                tooltipFormat: 'MMM d, yyyy'
+                            },
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Date',
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45,
+                                autoSkip: true,
+                                maxTicksLimit: 15
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Distance (km)',
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update chart button
+        document.getElementById('update-chart-btn').addEventListener('click', () => {
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+
+            if (startDate && endDate) {
+                loadChartData(startDate, endDate);
+            } else {
+                alert('Please select both start and end dates');
+            }
+        });
+
+        // Load initial chart data
+        loadChartData(
+            document.getElementById('start-date').value,
+            document.getElementById('end-date').value
+        );
+
+        // ==================== ATHLETE INFO ====================
+        // Fetch full athlete details from Strava
+        async function loadAthleteDetails() {
+            try {
+                const response = await fetch('/api/athlete');
+                const athlete = await response.json();
+
+                // Update location
+                const locationText = document.getElementById('location-text');
+                const locationParts = [];
+
+                if (athlete.city) locationParts.push(athlete.city);
+                if (athlete.state) locationParts.push(athlete.state);
+                if (athlete.country) locationParts.push(athlete.country);
+
+                if (locationParts.length > 0) {
+                    locationText.textContent = locationParts.join(', ');
+                } else {
+                    document.getElementById('athlete-location').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error loading athlete details:', error);
+                document.getElementById('athlete-location').style.display = 'none';
+            }
+        }
+
+        // Load athlete details on page load
+        loadAthleteDetails();
+
+        // ==================== PERSONAL RECORDS ====================
+        async function loadPersonalRecords() {
+            try {
+                const response = await fetch('/api/personal-records');
+                const prs = await response.json();
+
+                const prGrid = document.getElementById('pr-grid-inline');
+                prGrid.innerHTML = '';
+
+                const distances = {
+                    '1km': '1K',
+                    '5km': '5K',
+                    '10km': '10K',
+                    'half_marathon': 'Half',
+                    'marathon': 'Full'
+                };
+
+                let hasAnyPR = false;
+
+                for (const [key, label] of Object.entries(distances)) {
+                    const pr = prs[key];
+                    const prCard = document.createElement('div');
+                    prCard.className = 'pr-card-inline';
+
+                    if (pr) {
+                        hasAnyPR = true;
+                        prCard.innerHTML = `
+                            <div class="pr-distance-inline">${label}</div>
+                            <div class="pr-time-inline">${pr.time_formatted}</div>
+                            <div class="pr-pace-inline">${pr.pace}</div>
+                        `;
+                    } else {
+                        prCard.classList.add('pr-empty-inline');
+                        prCard.innerHTML = `
+                            <div class="pr-distance-inline">${label}</div>
+                            <div class="pr-time-inline">--:--</div>
+                        `;
+                    }
+
+                    prGrid.appendChild(prCard);
+                }
+
+                if (!hasAnyPR) {
+                    prGrid.innerHTML = '<div class="pr-no-records-inline">No PRs yet</div>';
+                }
+
+            } catch (error) {
+                console.error('Error loading personal records:', error);
+                const prGrid = document.getElementById('pr-grid-inline');
+                prGrid.innerHTML = '<div class="pr-error-inline">Error loading</div>';
+            }
+        }
+
+        // Load personal records on page load
+        loadPersonalRecords();
+
+        // ==================== HEART RATE ZONES ====================
+        let currentSettings = null;
+
+        // Load HR settings on page load
+        async function loadHRSettings() {
+            try {
+                const response = await fetch('/api/hr-settings');
+                currentSettings = await response.json();
+                displayHRZonesInline(currentSettings.hr_zones);
+                populateManualZonesInputs(currentSettings.hr_zones);
+
+                // Populate age fields if available
+                if (currentSettings.actual_age) {
+                    document.getElementById('actual-age').value = currentSettings.actual_age;
+                    // Display age in athlete info
+                    const ageEl = document.getElementById('athlete-age');
+                    ageEl.textContent = `🎂 Age ${currentSettings.actual_age}`;
+                    ageEl.style.display = 'block';
+                }
+                if (currentSettings.fitness_age) {
+                    document.getElementById('fitness-age').value = currentSettings.fitness_age;
+                }
+                if (currentSettings.max_hr) {
+                    document.getElementById('max-hr').value = currentSettings.max_hr;
+                }
+            } catch (error) {
+                console.error('Error loading HR settings:', error);
+            }
+        }
+
+        function displayHRZonesInline(zones) {
+            const display = document.getElementById('hr-zones-inline');
+            display.innerHTML = '';
+
+            const zoneColors = ['#48bb78', '#68d391', '#f6ad55', '#fc8181', '#f56565', '#c53030'];
+            let i = 0;
+
+            for (const [key, zone] of Object.entries(zones)) {
+                const zoneEl = document.createElement('div');
+                zoneEl.className = 'hr-zone-inline';
+                zoneEl.style.borderLeftColor = zoneColors[i];
+                zoneEl.innerHTML = `
+                    <div class="zone-name-inline">Z${i+1}</div>
+                    <div class="zone-range-inline">${zone.min}-${zone.max}</div>
+                `;
+                display.appendChild(zoneEl);
+                i++;
+            }
+        }
+
+        function populateManualZonesInputs(zones) {
+            const container = document.getElementById('manual-zones-inputs');
+            container.innerHTML = '';
+
+            let i = 1;
+            for (const [key, zone] of Object.entries(zones)) {
+                const zoneNum = key.replace('zone', '');
+                const div = document.createElement('div');
+                div.className = 'manual-zone-input';
+                div.innerHTML = `
+                    <label>Zone ${zoneNum} (${zone.name}):</label>
+                    <div class="zone-range-inputs">
+                        <input type="number" id="zone${zoneNum}-min" value="${zone.min}" min="0" max="250" placeholder="Min" data-zone="${zoneNum}">
+                        <span>-</span>
+                        <input type="number" id="zone${zoneNum}-max" value="${zone.max}" min="0" max="250" placeholder="Max" data-zone="${zoneNum}">
+                        <span>bpm</span>
+                    </div>
+                `;
+                container.appendChild(div);
+                i++;
+            }
+
+            // Add event listeners for linked zone changes
+            addZoneLinkListeners();
+        }
+
+        function addZoneLinkListeners() {
+            // When max of zone N changes, update min of zone N+1
+            for (let i = 1; i <= 5; i++) {
+                const maxInput = document.getElementById(`zone${i}-max`);
+                if (maxInput) {
+                    maxInput.addEventListener('input', (e) => {
+                        const nextMinInput = document.getElementById(`zone${i+1}-min`);
+                        if (nextMinInput) {
+                            nextMinInput.value = parseInt(e.target.value) + 1;
+                        }
+                    });
+                }
+            }
+
+            // When min of zone N changes, update max of zone N-1
+            for (let i = 2; i <= 6; i++) {
+                const minInput = document.getElementById(`zone${i}-min`);
+                if (minInput) {
+                    minInput.addEventListener('input', (e) => {
+                        const prevMaxInput = document.getElementById(`zone${i-1}-max`);
+                        if (prevMaxInput) {
+                            prevMaxInput.value = parseInt(e.target.value) - 1;
+                        }
+                    });
+                }
+            }
+        }
+
+        // Toggle settings panel (slide in from right)
+        document.getElementById('toggle-settings-panel').addEventListener('click', () => {
+            const panel = document.getElementById('settings-panel');
+            const overlay = document.getElementById('settings-overlay');
+            panel.classList.add('active');
+            overlay.style.display = 'block';
+        });
+
+        document.getElementById('close-settings-panel').addEventListener('click', () => {
+            const panel = document.getElementById('settings-panel');
+            const overlay = document.getElementById('settings-overlay');
+            panel.classList.remove('active');
+            overlay.style.display = 'none';
+        });
+
+        document.getElementById('settings-overlay').addEventListener('click', () => {
+            const panel = document.getElementById('settings-panel');
+            const overlay = document.getElementById('settings-overlay');
+            panel.classList.remove('active');
+            overlay.style.display = 'none';
+        });
+
+        // Settings tabs switching
+        document.querySelectorAll('.settings-tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabName = btn.dataset.settingsTab;
+
+                document.querySelectorAll('.settings-tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.settings-tab-content').forEach(c => c.classList.remove('active'));
+
+                btn.classList.add('active');
+                document.getElementById(`${tabName}-tab`).classList.add('active');
+            });
+        });
+
+        // Logout button in settings panel
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            window.location.href = '/auth/logout';
+        });
+
+        // HR settings tab switching
+        document.querySelectorAll('.hr-tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabName = btn.dataset.hrTab;
+
+                document.querySelectorAll('.hr-tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.hr-tab-content').forEach(c => c.classList.remove('active'));
+
+                btn.classList.add('active');
+                document.getElementById(`${tabName}-tab`).classList.add('active');
+            });
+        });
+
+        // Calculate max HR when age changes
+        function calculateMaxHR() {
+            const actualAge = parseInt(document.getElementById('actual-age').value) || 0;
+            const fitnessAge = parseInt(document.getElementById('fitness-age').value) || 0;
+
+            if (actualAge > 0) {
+                const age = fitnessAge > 0 ? fitnessAge : actualAge;
+                const maxHR = 220 - age;
+                document.getElementById('max-hr').value = maxHR;
+            }
+        }
+
+        document.getElementById('actual-age').addEventListener('input', calculateMaxHR);
+        document.getElementById('fitness-age').addEventListener('input', calculateMaxHR);
+
+        // Save parameters and recalculate zones
+        document.getElementById('save-params-btn').addEventListener('click', async () => {
+            const actualAge = parseInt(document.getElementById('actual-age').value);
+            const fitnessAge = parseInt(document.getElementById('fitness-age').value) || null;
+            const maxHR = parseInt(document.getElementById('max-hr').value);
+
+            if (!actualAge || !maxHR) {
+                alert('Please enter your actual age');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/hr-settings/params', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        actual_age: actualAge,
+                        fitness_age: fitnessAge,
+                        max_hr: maxHR
+                    })
+                });
+
+                currentSettings = await response.json();
+                displayHRZonesInline(currentSettings.hr_zones);
+                populateManualZonesInputs(currentSettings.hr_zones);
+
+                // Update age display
+                if (currentSettings.actual_age) {
+                    const ageEl = document.getElementById('athlete-age');
+                    ageEl.textContent = `🎂 Age ${currentSettings.actual_age}`;
+                    ageEl.style.display = 'block';
+                }
+
+                alert('Heart rate zones updated!');
+            } catch (error) {
+                console.error('Error saving HR params:', error);
+                alert('Error saving settings');
+            }
+        });
+
+        // Save manual zones
+        document.getElementById('save-manual-zones-btn').addEventListener('click', async () => {
+            const zones = {};
+
+            for (let i = 1; i <= 6; i++) {
+                const min = parseInt(document.getElementById(`zone${i}-min`).value);
+                const max = parseInt(document.getElementById(`zone${i}-max`).value);
+                const name = currentSettings.hr_zones[`zone${i}`].name;
+
+                if (!min || !max || min >= max) {
+                    alert(`Please enter valid values for Zone ${i}`);
+                    return;
+                }
+
+                zones[`zone${i}`] = {min, max, name};
+            }
+
+            try {
+                const response = await fetch('/api/hr-settings/zones', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(zones)
+                });
+
+                currentSettings = await response.json();
+                displayHRZonesInline(currentSettings.hr_zones);
+                alert('Heart rate zones updated!');
+            } catch (error) {
+                console.error('Error saving manual zones:', error);
+                alert('Error saving zones');
+            }
+        });
+
+        // Load HR settings on page load
+        loadHRSettings();
+    </script>
 </body>
 </html>
