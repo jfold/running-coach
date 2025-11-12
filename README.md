@@ -17,6 +17,19 @@ A web application to track your running and fitness stats using Strava integrati
 
 ## Quick Start with Docker (Recommended)
 
+### 0. Install Docker Desktop
+
+If you don't have Docker installed:
+
+1. Download Docker Desktop from https://www.docker.com/products/docker-desktop
+2. Install Docker Desktop
+3. Open the **Docker Desktop** application
+4. Sign in with your Docker account (or GitHub account)
+5. Wait for Docker Desktop to fully start - you'll see "Docker Desktop is running" in the app
+6. Keep Docker Desktop running in the background
+
+**Important:** Docker Desktop must be running before you execute any `docker-compose` commands!
+
 ### 1. Get Strava API Credentials
 
 1. Go to https://www.strava.com/settings/api
@@ -25,6 +38,8 @@ A web application to track your running and fitness stats using Strava integrati
 4. Note your **Client ID** and **Client Secret**
 
 ### 2. Configure Environment Variables
+
+**Open your terminal** and navigate to the project:
 
 ```bash
 cd running-coach
@@ -47,17 +62,32 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 Or use any random string generator.
 
-### 3. Run with Docker Compose
+### 3. Build and Run with Docker Compose
+
+**In your terminal**, make sure you're in the project directory and run:
 
 ```bash
 docker-compose up --build
 ```
 
-That's it! The application will be available at: **http://localhost:8000**
+This will:
+- Build the Docker image
+- Install all dependencies
+- Start the application
+- Show you logs in the terminal
 
-To run in detached mode:
+The application will be available at: **http://localhost:8000**
+
+**Other useful commands:**
+
+To run in detached mode (background):
 ```bash
 docker-compose up -d
+```
+
+To view logs when running in detached mode:
+```bash
+docker-compose logs -f
 ```
 
 To stop:
@@ -65,12 +95,17 @@ To stop:
 docker-compose down
 ```
 
+To rebuild after code changes:
+```bash
+docker-compose up --build
+```
+
 ### 4. Test the Login Flow
 
 1. Open http://localhost:8000 in your browser
 2. Click "Connect with Strava"
-3. Authorize the application
-4. You'll be redirected back to the dashboard
+3. Authorize the application on Strava's page
+4. You'll be redirected back to the dashboard with your athlete info
 
 ## Alternative: Run Without Docker
 
