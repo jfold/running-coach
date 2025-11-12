@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Running Coach</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="dashboard">
+        {% if message %}
+        <div class="success-message">
+            {{ message }}
+        </div>
+        {% endif %}
+
+        <div class="athlete-info">
+            {% if athlete.profile %}
+            <img src="{{ athlete.profile }}" alt="{{ athlete.firstname }}" class="athlete-avatar">
+            {% else %}
+            <div class="athlete-avatar" style="background: #667eea; display: flex; align-items: center; justify-content: center; color: white; font-size: 2rem;">
+                {{ athlete.firstname[0] if athlete.firstname else '?' }}
+            </div>
+            {% endif %}
+
+            <div class="athlete-details">
+                <h2>Welcome, {{ athlete.firstname }} {{ athlete.lastname }}!</h2>
+                <p>{{ athlete.city }}, {{ athlete.state }} {{ athlete.country }}</p>
+                {% if athlete.username %}
+                <p>@{{ athlete.username }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="container">
+            <h2>Your Running Stats</h2>
+            <p style="color: #718096; margin: 1rem 0;">
+                We've successfully connected your Strava account. Your running data will appear here!
+            </p>
+
+            <div style="margin-top: 2rem;">
+                <p style="color: #4a5568;">
+                    <strong>Next steps:</strong> We'll be adding features to display your activities,
+                    track your progress, and help you achieve your running goals.
+                </p>
+            </div>
+
+            <a href="/auth/logout" class="logout-btn">Logout</a>
+        </div>
+    </div>
+</body>
+</html>

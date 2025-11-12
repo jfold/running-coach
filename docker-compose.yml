@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: running-coach
+    ports:
+      - "8000:8000"
+    environment:
+      - STRAVA_CLIENT_ID=${STRAVA_CLIENT_ID}
+      - STRAVA_CLIENT_SECRET=${STRAVA_CLIENT_SECRET}
+      - SECRET_KEY=${SECRET_KEY}
+      - REDIRECT_URI=${REDIRECT_URI:-http://localhost:8000/auth/callback}
+    env_file:
+      - .env
+    volumes:
+      # Mount code for development (comment out for production)
+      - ./app:/app/app
+      - ./app/templates:/app/app/templates
+      - ./app/static:/app/app/static
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
