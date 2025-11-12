@@ -78,21 +78,19 @@ async def callback(request: Request, code: str = None, state: str = None, error:
     refresh_token = token_response.get("refresh_token")
     expires_at = token_response.get("expires_at")
 
-    # TODO: Store tokens and user info in database/session
-    # For now, we'll just display the user info
+    # Store tokens and user info in session
+    request.session["access_token"] = access_token
+    request.session["refresh_token"] = refresh_token
+    request.session["expires_at"] = expires_at
+    request.session["athlete"] = athlete
 
-    return templates.TemplateResponse(
-        "dashboard.html",
-        {
-            "request": request,
-            "athlete": athlete,
-            "message": "Successfully authenticated with Strava!"
-        }
-    )
+    # Redirect to dashboard
+    return RedirectResponse(url="/dashboard", status_code=302)
 
 
 @router.get("/logout")
-async def logout():
+async def logout(request: Request):
     """Logout user"""
-    # TODO: Clear session/cookies and revoke Strava token
+    # Clear session
+    request.session.clear()
     return RedirectResponse(url="/")
