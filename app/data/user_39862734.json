@@ -1,0 +1,37 @@
+{
+  "max_hr": 190,
+  "fitness_age": null,
+  "actual_age": null,
+  "hr_zones": {
+    "zone1": {
+      "min": 95,
+      "max": 114,
+      "name": "Recovery"
+    },
+    "zone2": {
+      "min": 114,
+      "max": 145,
+      "name": "Aerobic"
+    },
+    "zone3": {
+      "min": 145,
+      "max": 152,
+      "name": "Tempo"
+    },
+    "zone4": {
+      "min": 152,
+      "max": 171,
+      "name": "Threshold"
+    },
+    "zone5": {
+      "min": 175,
+      "max": 185,
+      "name": "VO2 Max"
+    },
+    "zone6": {
+      "min": 185,
+      "max": 190,
+      "name": "Anaerobic"
+    }
+  }
+}
