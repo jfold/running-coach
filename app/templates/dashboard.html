@@ -48,6 +48,19 @@
                             <div class="pr-loading-inline">Loading...</div>
                         </div>
                     </div>
+
+                    <!-- Best Efforts Inline -->
+                    <div class="pr-section-inline" style="margin-top: 1rem;">
+                        <div class="pr-header-inline">
+                            <span class="pr-title-inline">⚡ Best Efforts</span>
+                            <button id="refresh-best-efforts-btn" class="refresh-btn" title="Refresh from Strava">
+                                🔄
+                            </button>
+                        </div>
+                        <div class="pr-grid-inline" id="best-efforts-grid-inline">
+                            <div class="pr-loading-inline">Loading...</div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Settings and Logout Buttons -->
@@ -145,7 +158,7 @@
                         </thead>
                         <tbody>
                             {% for activity in activities %}
-                            <tr>
+                            <tr class="activity-row" onclick="window.open('https://www.strava.com/activities/{{ activity.id }}', '_blank')" style="cursor: pointer;">
                                 <td class="date-col">
                                     {{ activity.start_date_local.split('T')[0] }}
                                 </td>
@@ -165,7 +178,11 @@
                                 </td>
                                 <td class="pace-col">
                                     {% if activity.distance > 0 %}
-                                        {{ "%d:%02d"|format((activity.moving_time / (activity.distance / 1000)) // 60, (activity.moving_time / (activity.distance / 1000)) % 60) }} /km
+                                        {% if activity.type == 'Ride' %}
+                                            {{ "%.1f"|format((activity.distance / 1000) / (activity.moving_time / 3600)) }} km/h
+                                        {% else %}
+                                            {{ "%d:%02d"|format((activity.moving_time / (activity.distance / 1000)) // 60, (activity.moving_time / (activity.distance / 1000)) % 60) }} /km
+                                        {% endif %}
                                     {% else %}
                                         -
                                     {% endif %}
@@ -208,6 +225,10 @@
                     <div class="chart-container">
                         <canvas id="distanceChart"></canvas>
                     </div>
+
+                    <div class="chart-container" style="margin-top: 2rem;">
+                        <canvas id="heartRateChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -234,6 +255,7 @@
 
         // Chart functionality
         let distanceChart = null;
+        let heartRateChart = null;
 
         // Set default dates (last year)
         const endDate = new Date();
@@ -254,19 +276,28 @@
                 // Sort by date
                 runActivities.sort((a, b) => new Date(a.start_date_local) - new Date(b.start_date_local));
 
-                // Prepare chart data with actual date objects for proper time spacing
-                const chartData = runActivities.map(a => ({
+                // Prepare distance chart data with actual date objects for proper time spacing
+                const distanceChartData = runActivities.map(a => ({
                     x: new Date(a.start_date_local),
                     y: (a.distance / 1000).toFixed(2)
                 }));
 
-                updateChart(chartData);
+                // Prepare heart rate chart data (only include runs with HR data)
+                const heartRateChartData = runActivities
+                    .filter(a => a.average_heartrate && a.average_heartrate > 0)
+                    .map(a => ({
+                        x: new Date(a.start_date_local),
+                        y: Math.round(a.average_heartrate)
+                    }));
+
+                updateDistanceChart(distanceChartData);
+                updateHeartRateChart(heartRateChartData);
             } catch (error) {
                 console.error('Error loading chart data:', error);
             }
         }
 
-        function updateChart(data) {
+        function updateDistanceChart(data) {
             const ctx = document.getElementById('distanceChart').getContext('2d');
 
             if (distanceChart) {
@@ -353,6 +384,104 @@
                                 }
                             },
                             beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateHeartRateChart(data) {
+            const ctx = document.getElementById('heartRateChart').getContext('2d');
+
+            if (heartRateChart) {
+                heartRateChart.destroy();
+            }
+
+            heartRateChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Average Heart Rate (bpm)',
+                        data: data,
+                        borderColor: '#e53e3e',
+                        backgroundColor: 'rgba(229, 62, 62, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.1,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        pointBackgroundColor: '#e53e3e',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                        },
+                        tooltip: {
+                            mode: 'nearest',
+                            intersect: false,
+                            callbacks: {
+                                title: function(context) {
+                                    const date = new Date(context[0].parsed.x);
+                                    return date.toLocaleDateString('en-US', {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric'
+                                    });
+                                },
+                                label: function(context) {
+                                    return `Avg HR: ${context.parsed.y} bpm`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'day',
+                                displayFormats: {
+                                    day: 'MMM d',
+                                    week: 'MMM d',
+                                    month: 'MMM yyyy'
+                                },
+                                tooltipFormat: 'MMM d, yyyy'
+                            },
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Date',
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45,
+                                autoSkip: true,
+                                maxTicksLimit: 15
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Heart Rate (bpm)',
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            },
+                            beginAtZero: false,
+                            suggestedMin: 100,
+                            suggestedMax: 200
                         }
                     }
                 }
@@ -461,6 +590,98 @@
 
         // Load personal records on page load
         loadPersonalRecords();
+
+        // ==================== BEST EFFORTS ====================
+        async function loadBestEfforts(forceRefresh = false) {
+            try {
+                const url = forceRefresh ? '/api/best-efforts?refresh=true' : '/api/best-efforts';
+                const response = await fetch(url);
+                const data = await response.json();
+
+                const bestEffortsGrid = document.getElementById('best-efforts-grid-inline');
+                bestEffortsGrid.innerHTML = '';
+
+                if (data.rate_limited) {
+                    bestEffortsGrid.innerHTML = '<div class="pr-error-inline">Rate limited. Try again in 15 min.</div>';
+                    return;
+                }
+
+                const bestEfforts = data.best_efforts || {};
+
+                const distances = {
+                    '1km': '1K',
+                    '5km': '5K',
+                    '10km': '10K',
+                    'half_marathon': 'Half',
+                    'marathon': 'Full'
+                };
+
+                let hasAnyEffort = false;
+
+                for (const [key, label] of Object.entries(distances)) {
+                    const effort = bestEfforts[key];
+                    const effortCard = document.createElement('div');
+                    effortCard.className = 'pr-card-inline';
+                    effortCard.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+
+                    if (effort) {
+                        hasAnyEffort = true;
+                        effortCard.innerHTML = `
+                            <div class="pr-distance-inline">${label}</div>
+                            <div class="pr-time-inline">${effort.time_formatted}</div>
+                            <div class="pr-pace-inline">${effort.pace}</div>
+                        `;
+                    } else {
+                        effortCard.classList.add('pr-empty-inline');
+                        effortCard.innerHTML = `
+                            <div class="pr-distance-inline">${label}</div>
+                            <div class="pr-time-inline">--:--</div>
+                        `;
+                    }
+
+                    bestEffortsGrid.appendChild(effortCard);
+                }
+
+                if (!hasAnyEffort) {
+                    bestEffortsGrid.innerHTML = '<div class="pr-no-records-inline">No best efforts yet</div>';
+                }
+
+            } catch (error) {
+                console.error('Error loading best efforts:', error);
+                const bestEffortsGrid = document.getElementById('best-efforts-grid-inline');
+                bestEffortsGrid.innerHTML = '<div class="pr-error-inline">Error loading</div>';
+            }
+        }
+
+        // Load best efforts on page load
+        loadBestEfforts();
+
+        // Refresh best efforts button
+        document.getElementById('refresh-best-efforts-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('refresh-best-efforts-btn');
+            const grid = document.getElementById('best-efforts-grid-inline');
+
+            // Disable button and show loading
+            btn.disabled = true;
+            btn.textContent = '⏳';
+            grid.innerHTML = '<div class="pr-loading-inline">Refreshing from Strava...</div>';
+
+            try {
+                // Force refresh from Strava
+                await loadBestEfforts(true);
+                btn.textContent = '✓';
+                setTimeout(() => {
+                    btn.textContent = '🔄';
+                    btn.disabled = false;
+                }, 2000);
+            } catch (error) {
+                btn.textContent = '✗';
+                setTimeout(() => {
+                    btn.textContent = '🔄';
+                    btn.disabled = false;
+                }, 2000);
+            }
+        });
 
         // ==================== HEART RATE ZONES ====================
         let currentSettings = null;

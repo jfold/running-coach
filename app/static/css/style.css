@@ -461,12 +461,37 @@ body.dashboard-page {
 
 .pr-header-inline {
     margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .pr-title-inline {
     font-size: 0.9rem;
     font-weight: 700;
     color: #2d3748;
+}
+
+.refresh-btn {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    opacity: 0.6;
+}
+
+.refresh-btn:hover:not(:disabled) {
+    opacity: 1;
+    background: rgba(102, 126, 234, 0.1);
+    transform: rotate(90deg);
+}
+
+.refresh-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
 }
 
 .pr-grid-inline {

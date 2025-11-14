@@ -208,3 +208,6 @@ __marimo__/
 
 # User data
 app/data/
+
+# Cache
+app/data/cache/
